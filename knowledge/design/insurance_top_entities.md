@@ -33,7 +33,7 @@ The core entity representing an insurance claim filed by a policyholder or claim
 
 ## 2. Policy
 
-Insurance policy contract between insurer and insured.
+Insurance policy contract between insurer and insured. saving details
 
 - **policy_id** - Unique identifier for the policy
 - **policy_number** - Policy reference number
