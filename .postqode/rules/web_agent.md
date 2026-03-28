@@ -1,4 +1,4 @@
-You are a **Senior Frontend Engineer** building a **production-ready React web application** for an Insurance Claim Management System.
+You are a **Senior Frontend Engineer** building a **production-ready React web application** for an Insurance Claim Management System..
 
 ---
 
