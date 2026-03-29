@@ -25,6 +25,11 @@ def create_user(data: UserCreate, session: Session = Depends(get_session)):
     service = UserService(session)
     return service.create_user(data)
 
+@router.get("/users/", response_model=ResponseSchema[List[UserRead]])
+def list_users(session: Session = Depends(get_session)):
+    service = UserService(session)
+    return service.list_users()
+
 @router.post("/policy-master/", response_model=ResponseSchema[PolicyMasterRead])
 def create_policy_master(data: PolicyMasterCreate, session: Session = Depends(get_session)):
     service = PolicyMasterService(session)
