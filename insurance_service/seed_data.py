@@ -29,7 +29,7 @@ def seed_data():
         employee = User(
             username="admin_emp",
             email="admin@insurance.com",
-            password_hash="hashed_password_123",
+            password_hash="password@123",
             first_name="Admin",
             last_name="Employee",
             role=UserRole.EMPLOYEE
@@ -38,7 +38,7 @@ def seed_data():
         policyholder = User(
             username="johndoe",
             email="john.doe@example.com",
-            password_hash="hashed_password_456",
+            password_hash="password@123",
             first_name="John",
             last_name="Doe",
             role=UserRole.POLICYHOLDER

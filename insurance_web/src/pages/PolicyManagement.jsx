@@ -5,9 +5,17 @@ import DataTable from '../components/DataTable';
 import Modal from '../components/Modal';
 import FormField from '../components/FormField';
 import { listPolicies, createPolicyMaster, purchasePolicy } from '../services/policyService';
+import { listUsers } from '../services/userService';
+
+function generatePolicyNumber() {
+  const year = new Date().getFullYear();
+  const seq = String(Math.floor(Math.random() * 99999) + 1).padStart(5, '0');
+  return `POL-${year}-${seq}`;
+}
 
 export default function PolicyManagement() {
   const [policies, setPolicies] = useState([]);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [showPurchase, setShowPurchase] = useState(false);
@@ -15,18 +23,26 @@ export default function PolicyManagement() {
   const [purchaseForm, setPurchaseForm] = useState({ user_id: '', policy_master_id: '', policy_number: '', start_date: '', end_date: '', premium_paid: '' });
   const [submitting, setSubmitting] = useState(false);
 
-  const loadPolicies = () => {
+  const loadData = () => {
     setLoading(true);
-    listPolicies()
-      .then((data) => setPolicies(Array.isArray(data) ? data : []))
-      .catch((err) => toast.error(err.message || 'Failed to load policies'))
+    Promise.all([listPolicies(), listUsers()])
+      .then(([policiesData, usersData]) => {
+        setPolicies(Array.isArray(policiesData) ? policiesData : []);
+        setUsers(Array.isArray(usersData) ? usersData : []);
+      })
+      .catch((err) => toast.error(err.message || 'Failed to load data'))
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { loadPolicies(); }, []);
+  useEffect(() => { loadData(); }, []);
 
   const handleChange = (e) => setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   const handlePurchaseChange = (e) => setPurchaseForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+
+  const openPurchaseModal = () => {
+    setPurchaseForm({ user_id: '', policy_master_id: '', policy_number: generatePolicyNumber(), start_date: '', end_date: '', premium_paid: '' });
+    setShowPurchase(true);
+  };
 
   const handleCreate = async () => {
     if (!form.name || !form.policy_type || !form.base_premium) {
@@ -39,7 +55,7 @@ export default function PolicyManagement() {
       toast.success('Policy created!');
       setShowCreate(false);
       setForm({ name: '', description: '', policy_type: '', base_premium: '', coverage_details: '' });
-      loadPolicies();
+      loadData();
     } catch (err) {
       toast.error(err.message || 'Failed to create policy');
     } finally {
@@ -57,13 +73,14 @@ export default function PolicyManagement() {
       await purchasePolicy({ ...purchaseForm, premium_paid: parseFloat(purchaseForm.premium_paid) });
       toast.success('Policy purchased!');
       setShowPurchase(false);
-      setPurchaseForm({ user_id: '', policy_master_id: '', policy_number: '', start_date: '', end_date: '', premium_paid: '' });
     } catch (err) {
       toast.error(err.message || 'Failed to purchase policy');
     } finally {
       setSubmitting(false);
     }
   };
+
+  const policyholderUsers = users.filter((u) => u.role === 'policyholder');
 
   const columns = [
     { key: 'name', label: 'Policy Name' },
@@ -79,7 +96,7 @@ export default function PolicyManagement() {
         subtitle="Manage policy master records and purchase policies for users"
         action={
           <div className="flex gap-2">
-            <button onClick={() => setShowPurchase(true)} className="rounded-lg border border-indigo-600 bg-white px-4 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50">
+            <button onClick={openPurchaseModal} className="rounded-lg border border-indigo-600 bg-white px-4 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50">
               Purchase Policy
             </button>
             <button onClick={() => setShowCreate(true)} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
@@ -111,7 +128,16 @@ export default function PolicyManagement() {
       {/* Purchase policy modal */}
       <Modal open={showPurchase} onClose={() => setShowPurchase(false)} title="Purchase Policy for User" wide>
         <div className="grid gap-4 sm:grid-cols-2">
-          <FormField label="User ID (UUID)" name="user_id" value={purchaseForm.user_id} onChange={handlePurchaseChange} required placeholder="Policyholder UUID" />
+          <FormField
+            label="Policyholder"
+            name="user_id"
+            type="select"
+            value={purchaseForm.user_id}
+            onChange={handlePurchaseChange}
+            required
+            placeholder="Select a policyholder"
+            options={policyholderUsers.map((u) => ({ value: u.id, label: `${u.email} (${u.first_name} ${u.last_name})` }))}
+          />
           <FormField
             label="Policy"
             name="policy_master_id"
@@ -121,7 +147,7 @@ export default function PolicyManagement() {
             required
             options={policies.map((p) => ({ value: p.id, label: `${p.name} (₹${Number(p.base_premium).toLocaleString('en-IN')})` }))}
           />
-          <FormField label="Policy Number" name="policy_number" value={purchaseForm.policy_number} onChange={handlePurchaseChange} required placeholder="e.g. POL-2026-001" />
+          <FormField label="Policy Number" name="policy_number" value={purchaseForm.policy_number} onChange={handlePurchaseChange} required disabled />
           <FormField label="Premium Paid (₹)" name="premium_paid" type="number" value={purchaseForm.premium_paid} onChange={handlePurchaseChange} required />
           <FormField label="Start Date" name="start_date" type="date" value={purchaseForm.start_date} onChange={handlePurchaseChange} required />
           <FormField label="End Date" name="end_date" type="date" value={purchaseForm.end_date} onChange={handlePurchaseChange} required />

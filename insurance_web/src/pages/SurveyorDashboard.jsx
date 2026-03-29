@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
+import { useAuth } from '../context/AuthContext';
 import PageHeader from '../components/PageHeader';
 import DataTable from '../components/DataTable';
 import StatusBadge from '../components/StatusBadge';
@@ -9,10 +10,11 @@ import { listClaims, verifyClaim } from '../services/claimService';
 import { CLAIM_STATUS } from '../constants/enums';
 
 export default function SurveyorDashboard() {
+  const { user } = useAuth();
   const [claims, setClaims] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
-  const [verifyForm, setVerifyForm] = useState({ employee_id: '', status: '' });
+  const [status, setStatus] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const loadClaims = () => {
@@ -25,22 +27,24 @@ export default function SurveyorDashboard() {
 
   useEffect(() => { loadClaims(); }, []);
 
+  const openReview = (row) => {
+    setSelected(row);
+    setStatus('');
+  };
+
   const handleVerify = async () => {
-    if (!verifyForm.employee_id.trim()) {
-      toast.error('Employee ID is required');
-      return;
-    }
-    if (!verifyForm.status) {
+    if (!status) {
       toast.error('Please select a status');
       return;
     }
 
     setSubmitting(true);
     try {
-      await verifyClaim(selected.id, verifyForm.employee_id, verifyForm.status);
-      toast.success(`Claim ${selected.claim_number} updated to "${verifyForm.status}"`);
+      await verifyClaim(selected.id, user.id, status);
+      toast.success(
+        `Claim ${selected.claim_number} updated to "${status}" — assessed by ${user.first_name} ${user.last_name}`
+      );
       setSelected(null);
-      setVerifyForm({ employee_id: '', status: '' });
       loadClaims();
     } catch (err) {
       toast.error(err.message || 'Verification failed');
@@ -59,7 +63,7 @@ export default function SurveyorDashboard() {
       label: 'Action',
       render: (_, row) => (
         <button
-          onClick={(e) => { e.stopPropagation(); setSelected(row); }}
+          onClick={(e) => { e.stopPropagation(); openReview(row); }}
           className="rounded-md bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-100"
         >
           Review
@@ -100,20 +104,18 @@ export default function SurveyorDashboard() {
               <div><span className="text-gray-500">Loss ID:</span> <span className="font-medium">{selected.loss_id ? selected.loss_id.slice(0, 8) + '...' : '—'}</span></div>
             </div>
 
-            <FormField
-              label="Employee ID (Your UUID)"
-              name="employee_id"
-              value={verifyForm.employee_id}
-              onChange={(e) => setVerifyForm((prev) => ({ ...prev, employee_id: e.target.value }))}
-              required
-              placeholder="Enter your employee UUID"
-            />
+            <div className="rounded-lg border border-indigo-100 bg-indigo-50 p-3">
+              <p className="text-xs font-medium text-indigo-600">Assessing as</p>
+              <p className="mt-0.5 text-sm font-semibold text-indigo-900">{user.first_name} {user.last_name}</p>
+              <p className="text-xs text-indigo-700">@{user.username} &middot; {user.role}</p>
+            </div>
+
             <FormField
               label="Update Status"
               name="status"
               type="select"
-              value={verifyForm.status}
-              onChange={(e) => setVerifyForm((prev) => ({ ...prev, status: e.target.value }))}
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
               required
               options={statusOptions}
             />

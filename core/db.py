@@ -2,9 +2,7 @@ from sqlmodel import create_engine, SQLModel, Session
 import os
 from config.settings import settings
 
-# engine = create_engine(settings.DATABASE_URL, echo=True)
-# For demo, keeping echo=True to see SQL queries
-engine = create_engine(settings.DATABASE_URL, echo=True)
+engine = create_engine(settings.DATABASE_URL, echo=settings.DEBUG)
 
 def get_session():
     with Session(engine) as session:

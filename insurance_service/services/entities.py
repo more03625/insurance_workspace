@@ -55,6 +55,14 @@ class UserService:
             logger.error(f"Error creating user: {str(e)}")
             return {"success": False, "error": ErrorCodes.GENERIC_ERROR}
 
+    def list_users(self) -> dict:
+        try:
+            users = self.repo.get_all()
+            return {"success": True, "data": users}
+        except Exception as e:
+            logger.error(f"Error listing users: {str(e)}")
+            return {"success": False, "error": ErrorCodes.GENERIC_ERROR}
+
 class PolicyMasterService:
     def __init__(self, session: Session):
         self.session = session
