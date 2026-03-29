@@ -33,7 +33,7 @@ python insurance_service/seed_data.py
 ## Run
 
 ```bash
-python -m uvicorn insurance_service.main:app --reload
+insurance_workspace/python -m uvicorn insurance_service.main:app --reload
 ```
 
 - Swagger UI: http://localhost:8000/docs

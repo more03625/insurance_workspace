@@ -106,7 +106,7 @@ export default function Login() {
                 {[
                   { username: 'admin_emp', password: 'password@123', role: 'Employee' },
                   { username: 'more03625', password: 'password@123', role: 'Policyholder' },
-                  { username: 'johndoe', password: 'password@123', role: 'Policyholder' },
+                  { username: 'rahulmore', password: 'password@123', role: 'Policyholder' },
                 ].map((cred) => (
                   <tr
                     key={cred.username}

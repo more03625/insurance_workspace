@@ -33,7 +33,7 @@ def _seed_users(session: Session):
         role=UserRole.EMPLOYEE,
     ))
     session.add(User(
-        username="johndoe",
+        username="rahulmore",
         email="john.doe@example.com",
         password_hash="password@123",
         first_name="John",
@@ -71,7 +71,7 @@ def _seed_user_policies(session: Session):
         print("[seed] user_policies — already has data, skipped.")
         return
     policyholder = session.exec(
-        select(User).where(User.username == "johndoe")
+        select(User).where(User.username == "rahulmore")
     ).first()
     auto_policy = session.exec(
         select(PolicyMaster).where(PolicyMaster.name == "Premium Auto Shield")

@@ -39,4 +39,4 @@ npm run dev
 | Username   | Password     | Role         |
 |------------|--------------|--------------|
 | admin_emp  | password@123 | Employee     |
-| johndoe    | password@123 | Policyholder |
+| rahulmore    | password@123 | Policyholder |
