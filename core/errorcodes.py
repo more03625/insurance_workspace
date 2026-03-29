@@ -6,6 +6,9 @@ class ErrorCodes:
     UNAUTHORIZED = {"code": 100001, "message": "Unauthorized access"}
     INVALID_INPUT = {"code": 100002, "message": "Invalid input provided"}
     NOT_FOUND = {"code": 100003, "message": "Requested resource not found"}
+    DUPLICATE_USERNAME = {"code": 100004, "message": "Username already exists"}
+    INVALID_CREDENTIALS = {"code": 100005, "message": "Invalid username or password"}
+    ACCOUNT_DEACTIVATED = {"code": 100006, "message": "Account is deactivated"}
     
     # Claim Errors
     CLAIM_NOT_FOUND = {"code": 200001, "message": "Claim not found"}

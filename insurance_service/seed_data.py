@@ -1,6 +1,13 @@
 import uuid
 import os
+import sys
 from datetime import datetime, timedelta
+from pathlib import Path
+
+_root = Path(__file__).resolve().parent.parent
+if str(_root) not in sys.path:
+    sys.path.insert(0, str(_root))
+
 from sqlmodel import Session, select, create_engine
 from insurance_service.models.entities import User, PolicyMaster, UserPolicy, Claimant, Loss, Claim, UserRole
 from config.settings import settings

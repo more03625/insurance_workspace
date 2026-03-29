@@ -9,7 +9,7 @@ def create_db():
             user='postgres',
             password='postgres',
             host='localhost',
-            port='5432'
+            port='5433'
         )
         conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
         cur = conn.cursor()

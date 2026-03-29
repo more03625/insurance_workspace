@@ -5,7 +5,7 @@ from typing import List, Optional
 from core.db import get_session
 from insurance_service.services.entities import UserService, PolicyMasterService, UserPolicyService, ClaimantService, DocumentService
 from insurance_service.schemas.entities import (
-    UserCreate, UserRead, 
+    LoginRequest, UserCreate, UserRead, 
     PolicyMasterCreate, PolicyMasterRead, 
     UserPolicyCreate, UserPolicyRead,
     ClaimantCreate, ClaimantRead,
@@ -14,6 +14,11 @@ from insurance_service.schemas.entities import (
 from insurance_service.schemas.base import ResponseSchema
 
 router = APIRouter(tags=["entities"])
+
+@router.post("/login", response_model=ResponseSchema[UserRead])
+def login(data: LoginRequest, session: Session = Depends(get_session)):
+    service = UserService(session)
+    return service.login(data)
 
 @router.post("/users/", response_model=ResponseSchema[UserRead])
 def create_user(data: UserCreate, session: Session = Depends(get_session)):

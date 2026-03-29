@@ -9,7 +9,7 @@ from insurance_service.repositories.entities import (
     ClaimantRepository, LossRepository, ClaimRepository, DocumentRepository
 )
 from insurance_service.schemas.entities import (
-    UserCreate, PolicyMasterCreate, UserPolicyCreate,
+    UserCreate, LoginRequest, PolicyMasterCreate, UserPolicyCreate,
     ClaimantCreate, LossCreate, ClaimCreate, ClaimUpdate, DocumentCreate
 )
 from core.errorcodes import ErrorCodes
@@ -21,10 +21,24 @@ class UserService:
         self.session = session
         self.repo = UserRepository(session)
 
+    def login(self, data: LoginRequest) -> dict:
+        try:
+            user = self.repo.get_by_username(data.username)
+            if not user:
+                return {"success": False, "error": ErrorCodes.INVALID_CREDENTIALS}
+            if user.password_hash != data.password:
+                return {"success": False, "error": ErrorCodes.INVALID_CREDENTIALS}
+            if not user.is_active:
+                return {"success": False, "error": ErrorCodes.ACCOUNT_DEACTIVATED}
+            return {"success": True, "data": user}
+        except Exception as e:
+            logger.error(f"Login error: {str(e)}")
+            return {"success": False, "error": ErrorCodes.GENERIC_ERROR}
+
     def create_user(self, data: UserCreate) -> dict:
         try:
             if self.repo.get_by_username(data.username):
-                return {"success": False, "error": {"code": 100004, "message": "Username already exists"}}
+                return {"success": False, "error": ErrorCodes.DUPLICATE_USERNAME}
             
             # In a real app, we would hash the password here
             new_user = User(

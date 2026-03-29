@@ -4,6 +4,11 @@ from typing import Optional, List
 import uuid
 from insurance_service.models.entities import UserRole
 
+# Auth Schemas
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
 # User Schemas
 class UserBase(BaseModel):
     username: str

@@ -1,4 +1,11 @@
-import os
+import sys
+from pathlib import Path
+
+# Allow `python insurance_service/migrate_db.py` from repo root (config + insurance_service live under root)
+_root = Path(__file__).resolve().parent.parent
+if str(_root) not in sys.path:
+    sys.path.insert(0, str(_root))
+
 from sqlmodel import SQLModel, create_engine, text
 from config.settings import settings
 from insurance_service.models.entities import User, PolicyMaster, UserPolicy, Claimant, Loss, Claim, Document
