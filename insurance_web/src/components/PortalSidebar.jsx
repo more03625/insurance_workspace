@@ -8,47 +8,70 @@ const navItems = [
   { to: '/portal/claims', label: 'My Claims', icon: ListIcon },
 ];
 
-export default function PortalSidebar() {
+export default function PortalSidebar({ collapsed, onToggleCollapse, onClose }) {
   const { user, logout } = useAuth();
 
   return (
-    <aside className="flex w-64 flex-col border-r border-gray-200 bg-white">
-      <div className="flex h-16 items-center gap-2 border-b border-gray-200 px-6">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-sm font-bold text-white">
-          IC
+    <aside className={`flex h-full flex-col border-r border-gray-200 bg-white transition-all duration-200 ${collapsed ? 'w-[68px]' : 'w-64'}`}>
+      {/* Header */}
+      <div className="flex h-14 items-center justify-between border-b border-gray-200 px-3">
+        <div className="flex items-center gap-2 overflow-hidden">
+          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-sm font-bold text-white">
+            IC
+          </div>
+          {!collapsed && <span className="truncate text-lg font-semibold text-gray-900">InsureClaim</span>}
         </div>
-        <span className="text-lg font-semibold text-gray-900">InsureClaim</span>
+        <button onClick={onClose} className="rounded-md p-1 text-gray-400 hover:bg-gray-100 lg:hidden">
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+          </svg>
+        </button>
+        <button onClick={onToggleCollapse} className="hidden rounded-md p-1 text-gray-400 hover:bg-gray-100 lg:block">
+          <svg className={`h-5 w-5 transition-transform ${collapsed ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5" />
+          </svg>
+        </button>
       </div>
 
-      <div className="border-b border-gray-100 px-4 py-3">
-        <p className="text-sm font-medium text-gray-900">{user?.first_name} {user?.last_name}</p>
-        <p className="text-xs text-gray-500">Policyholder</p>
-      </div>
+      {/* User info */}
+      {!collapsed && (
+        <div className="border-b border-gray-100 px-4 py-3">
+          <p className="truncate text-sm font-medium text-gray-900">{user?.first_name} {user?.last_name}</p>
+          <p className="text-xs text-gray-500">Policyholder</p>
+        </div>
+      )}
 
-      <nav className="flex-1 space-y-1 px-3 py-4">
+      {/* Nav */}
+      <nav className="flex-1 space-y-1 px-2 py-3">
         {navItems.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}
             end={to === '/portal'}
+            title={collapsed ? label : undefined}
             className={({ isActive }) =>
               `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
                 isActive
                   ? 'bg-indigo-50 text-indigo-700'
                   : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-              }`
+              } ${collapsed ? 'justify-center' : ''}`
             }
           >
             <Icon className="h-5 w-5 flex-shrink-0" />
-            {label}
+            {!collapsed && label}
           </NavLink>
         ))}
       </nav>
 
-      <div className="border-t border-gray-200 px-4 py-3">
-        <button onClick={logout} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50">
-          <LogoutIcon className="h-5 w-5" />
-          Sign Out
+      {/* Logout */}
+      <div className="border-t border-gray-200 px-2 py-3">
+        <button
+          onClick={logout}
+          title={collapsed ? 'Sign Out' : undefined}
+          className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 ${collapsed ? 'justify-center' : ''}`}
+        >
+          <LogoutIcon className="h-5 w-5 flex-shrink-0" />
+          {!collapsed && 'Sign Out'}
         </button>
       </div>
     </aside>

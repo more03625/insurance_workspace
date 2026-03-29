@@ -90,10 +90,31 @@ export default function Login() {
           </button>
         </form>
 
-        <div className="mt-6 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div className="mt-6 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
           <h3 className="mb-3 text-sm font-semibold text-gray-700">Demo Credentials</h3>
-          <p className="mb-3 text-xs text-gray-400">Click a row to auto-fill the login form.</p>
-          <div className="overflow-hidden rounded-lg border border-gray-100">
+          <p className="mb-3 text-xs text-gray-400">Tap a row to auto-fill the login form.</p>
+          <div className="space-y-2 sm:hidden">
+            {[
+              { username: 'admin_emp', password: 'password@123', role: 'Employee' },
+              { username: 'more03625', password: 'password@123', role: 'Policyholder' },
+              { username: 'rahulmore', password: 'password@123', role: 'Policyholder' },
+            ].map((cred) => (
+              <button
+                key={cred.username}
+                onClick={() => { setForm({ username: cred.username, password: cred.password }); setError(''); }}
+                className="flex w-full items-center justify-between rounded-lg border border-gray-100 p-3 text-left transition-colors hover:bg-indigo-50"
+              >
+                <div>
+                  <p className="font-mono text-xs font-medium text-gray-800">{cred.username}</p>
+                  <p className="font-mono text-xs text-gray-500">{cred.password}</p>
+                </div>
+                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${cred.role === 'Employee' ? 'bg-indigo-100 text-indigo-700' : 'bg-green-100 text-green-700'}`}>
+                  {cred.role}
+                </span>
+              </button>
+            ))}
+          </div>
+          <div className="hidden overflow-hidden rounded-lg border border-gray-100 sm:block">
             <table className="w-full text-left text-xs">
               <thead className="bg-gray-50 text-gray-500">
                 <tr>

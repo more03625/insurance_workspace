@@ -106,11 +106,11 @@ export default function SurveyorDashboard() {
       <Modal open={!!selected} onClose={() => setSelected(null)} title={`Review Claim: ${selected?.claim_number || ''}`}>
         {selected && (
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3 rounded-lg bg-gray-50 p-4 text-sm">
+            <div className="grid grid-cols-1 gap-3 rounded-lg bg-gray-50 p-3 text-sm sm:grid-cols-2 sm:p-4">
               <div><span className="text-gray-500">Status:</span> <StatusBadge status={selected.claim_status} /></div>
               <div><span className="text-gray-500">Amount:</span> <span className="font-medium">₹{Number(selected.estimated_loss_amount).toLocaleString('en-IN')}</span></div>
               <div><span className="text-gray-500">Filed:</span> <span className="font-medium">{new Date(selected.created_at).toLocaleDateString()}</span></div>
-              <div><span className="text-gray-500">Loss ID:</span> <span className="font-medium">{selected.loss_id ? selected.loss_id.slice(0, 8) + '...' : '—'}</span></div>
+              <div><span className="text-gray-500">Loss ID:</span> <span className="font-medium break-all">{selected.loss_id ? selected.loss_id.slice(0, 8) + '...' : '—'}</span></div>
             </div>
 
             {/* Documents section */}

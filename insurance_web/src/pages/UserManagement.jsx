@@ -53,10 +53,10 @@ export default function UserManagement() {
       {createdUsers.length > 0 ? (
         <div className="space-y-3">
           {createdUsers.map((u) => (
-            <div key={u.id} className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-              <div>
+            <div key={u.id} className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
                 <p className="text-sm font-semibold text-gray-900">{u.first_name} {u.last_name}</p>
-                <p className="text-xs text-gray-500">@{u.username} &middot; {u.email} &middot; {u.role}</p>
+                <p className="truncate text-xs text-gray-500">@{u.username} &middot; {u.email} &middot; {u.role}</p>
               </div>
               <div className="flex items-center gap-3">
                 <span className="rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-medium text-green-700">Active</span>

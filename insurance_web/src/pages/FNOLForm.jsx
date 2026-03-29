@@ -198,28 +198,29 @@ export default function FNOLForm() {
       <PageHeader title="File a Claim (FNOL)" subtitle="First Notice of Loss — create a new insurance claim" />
 
       {/* Step indicator */}
-      <div className="mb-8 flex flex-wrap items-center gap-2">
+      <div className="mb-6 flex items-center gap-1 overflow-x-auto pb-2 sm:mb-8 sm:gap-2">
         {stepLabels.map((label, i) => {
           const num = i + 1;
           const active = step === num;
           const done = step > num;
           return (
-            <div key={num} className="flex items-center gap-2">
+            <div key={num} className="flex flex-shrink-0 items-center gap-1.5 sm:gap-2">
               <div
-                className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold ${
+                className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold sm:h-8 sm:w-8 sm:text-sm ${
                   done ? 'bg-indigo-600 text-white' : active ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-500'
                 }`}
               >
                 {done ? '✓' : num}
               </div>
-              <span className={`text-sm font-medium ${active ? 'text-indigo-700' : 'text-gray-500'}`}>{label}</span>
-              {i < stepLabels.length - 1 && <div className="mx-2 h-px w-8 bg-gray-300" />}
+              <span className={`hidden text-sm font-medium sm:inline ${active ? 'text-indigo-700' : 'text-gray-500'}`}>{label}</span>
+              <span className={`text-xs font-medium sm:hidden ${active ? 'text-indigo-700' : 'text-gray-500'}`}>{label.split(' ')[0]}</span>
+              {i < stepLabels.length - 1 && <div className="mx-1 h-px w-4 bg-gray-300 sm:mx-2 sm:w-8" />}
             </div>
           );
         })}
       </div>
 
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+      <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
         {/* Step 1 — Claimant */}
         {step === 1 && (
           <div className="grid gap-4 sm:grid-cols-2">
@@ -292,42 +293,39 @@ export default function FNOLForm() {
             {documents.length > 0 && (
               <div className="mt-4 space-y-3">
                 {documents.map((doc) => (
-                  <div key={doc._localId} className="flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
-                    {/* File icon */}
-                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600">
-                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
-                      </svg>
+                  <div key={doc._localId} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600">
+                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                        </svg>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-gray-800">{doc.document_name}</p>
+                        <p className="text-xs text-gray-500">{doc.file_format.toUpperCase()} — {formatFileSize(doc.file_size)}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeDocument(doc._localId)}
+                        className="flex-shrink-0 rounded-md p-1.5 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500"
+                      >
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                        </svg>
+                      </button>
                     </div>
-
-                    {/* File info */}
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-gray-800">{doc.document_name}</p>
-                      <p className="text-xs text-gray-500">{doc.file_format.toUpperCase()} — {formatFileSize(doc.file_size)}</p>
+                    <div className="mt-2 pl-[52px]">
+                      <select
+                        value={doc.document_type}
+                        onChange={(e) => updateDocType(doc._localId, e.target.value)}
+                        className="w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:w-auto"
+                      >
+                        <option value="">Select type</option>
+                        {DOC_TYPES.map((t) => (
+                          <option key={t} value={t}>{t}</option>
+                        ))}
+                      </select>
                     </div>
-
-                    {/* Document type selector */}
-                    <select
-                      value={doc.document_type}
-                      onChange={(e) => updateDocType(doc._localId, e.target.value)}
-                      className="rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                    >
-                      <option value="">Select type</option>
-                      {DOC_TYPES.map((t) => (
-                        <option key={t} value={t}>{t}</option>
-                      ))}
-                    </select>
-
-                    {/* Remove button */}
-                    <button
-                      type="button"
-                      onClick={() => removeDocument(doc._localId)}
-                      className="flex-shrink-0 rounded-md p-1.5 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500"
-                    >
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                      </svg>
-                    </button>
                   </div>
                 ))}
 

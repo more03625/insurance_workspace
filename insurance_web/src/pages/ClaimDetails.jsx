@@ -68,9 +68,9 @@ export default function ClaimDetails() {
       <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
         <dl className="divide-y divide-gray-100">
           {details.map(({ label, value }) => (
-            <div key={label} className="flex items-center justify-between px-6 py-4">
+            <div key={label} className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-4">
               <dt className="text-sm font-medium text-gray-500">{label}</dt>
-              <dd className="text-sm font-semibold text-gray-900">{value}</dd>
+              <dd className="text-sm font-semibold text-gray-900 break-all">{value}</dd>
             </div>
           ))}
         </dl>
