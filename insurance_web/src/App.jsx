@@ -7,7 +7,10 @@ import PortalSidebar from './components/PortalSidebar';
 import AdminSidebar from './components/AdminSidebar';
 
 import Login from './pages/Login';
+import Signup from './pages/Signup';
 import PortalDashboard from './pages/portal/PortalDashboard';
+import BrowsePolicies from './pages/portal/BrowsePolicies';
+import PolicyPurchase from './pages/portal/PolicyPurchase';
 import MyPolicies from './pages/portal/MyPolicies';
 import MyClaims from './pages/portal/MyClaims';
 import FNOLForm from './pages/FNOLForm';
@@ -32,6 +35,7 @@ export default function App() {
           <Routes>
             {/* Public */}
             <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
 
             {/* Policyholder portal */}
             <Route
@@ -43,6 +47,8 @@ export default function App() {
               }
             >
               <Route index element={<PortalDashboard />} />
+              <Route path="browse" element={<BrowsePolicies />} />
+              <Route path="purchase/:policyMasterId" element={<PolicyPurchase />} />
               <Route path="policies" element={<MyPolicies />} />
               <Route path="fnol" element={<FNOLForm />} />
               <Route path="claims" element={<MyClaims />} />
