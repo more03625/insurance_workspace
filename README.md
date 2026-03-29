@@ -10,6 +10,7 @@ insurance_workspace/
 ├── core/                # Database connection & error codes
 ├── insurance_service/   # FastAPI backend (see insurance_service/README.md)
 ├── insurance_web/       # React frontend (see insurance_web/README.md)
+├── insurance_mob/       # Flutter mobile app (see insurance_mob/README.md)
 └── README.md
 ```
 

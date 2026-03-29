@@ -12,6 +12,15 @@ build/
 .env
 *.env.local
 
+# Virtualenv / tooling
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
 # Database
 *.db
 *.sqlite3
