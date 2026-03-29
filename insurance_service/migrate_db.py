@@ -1,45 +1,71 @@
 import sys
 from pathlib import Path
+from datetime import datetime
 
-# Allow `python insurance_service/migrate_db.py` from repo root (config + insurance_service live under root)
 _root = Path(__file__).resolve().parent.parent
 if str(_root) not in sys.path:
     sys.path.insert(0, str(_root))
 
-from sqlmodel import SQLModel, create_engine, text
+from sqlmodel import SQLModel, Session, Field, create_engine, text
+from typing import Optional
 from config.settings import settings
 from insurance_service.models.entities import User, PolicyMaster, UserPolicy, Claimant, Loss, Claim, Document
 
-# Use the database URL from settings
-engine = create_engine(settings.DATABASE_URL, echo=True)
+engine = create_engine(settings.DATABASE_URL, echo=settings.DEBUG)
+
+
+class AppliedMigration(SQLModel, table=True):
+    __tablename__ = "_applied_migrations"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(unique=True)
+    applied_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+MIGRATIONS = [
+    # ("002_add_some_column", "ALTER TABLE users ADD COLUMN phone VARCHAR DEFAULT NULL"),
+]
+
+
+def _ensure_migration_table(eng):
+    """Create the _applied_migrations tracking table if it doesn't exist."""
+    AppliedMigration.metadata.create_all(eng, tables=[AppliedMigration.__table__])
+
+
+def _get_applied(session: Session) -> set:
+    results = session.exec(
+        text("SELECT name FROM _applied_migrations")
+    ).all()
+    return {row[0] for row in results}
+
 
 def migrate():
-    print(f"Starting migration on {settings.DATABASE_URL}...")
-    
-    with engine.connect() as conn:
-        # Drop all tables with CASCADE to handle dependent objects like types
-        # We list the tables explicitly to ensure they are dropped in the right order or with CASCADE
-        tables = ["documents", "claims", "user_policies", "losses", "claimants", "policy_masters", "users", "user", "policymaster", "userpolicy", "claimant", "loss", "claim", "document"]
-        
-        for table in tables:
-            try:
-                conn.execute(text(f"DROP TABLE IF EXISTS \"{table}\" CASCADE"))
-                print(f"Dropped table {table}")
-            except Exception as e:
-                print(f"Could not drop table {table}: {e}")
-        
-        # Drop the enum type explicitly with CASCADE
-        try:
-            conn.execute(text("DROP TYPE IF EXISTS userrole CASCADE"))
-            print("Dropped type userrole")
-        except Exception as e:
-            print(f"Could not drop type userrole: {e}")
-            
-        conn.commit()
+    masked_url = settings.DATABASE_URL[:30] + "..."
+    print(f"[migrate] Connecting to {masked_url}")
 
-    # Recreate all tables
+    # Step 1: create any tables that don't exist yet (safe, idempotent)
     SQLModel.metadata.create_all(engine)
-    print("Migration completed successfully. All tables recreated.")
+    print("[migrate] create_all complete — missing tables created, existing tables untouched.")
+
+    # Step 2: ensure migration tracking table exists
+    _ensure_migration_table(engine)
+
+    # Step 3: run only unapplied migrations
+    with Session(engine) as session:
+        applied = _get_applied(session)
+        pending = [(name, sql) for name, sql in MIGRATIONS if name not in applied]
+
+        if not pending:
+            print("[migrate] No pending migrations.")
+        else:
+            for name, sql in pending:
+                print(f"[migrate] Applying: {name}")
+                session.exec(text(sql))
+                session.add(AppliedMigration(name=name))
+                session.commit()
+                print(f"[migrate] Applied: {name}")
+
+    print("[migrate] Done.")
+
 
 if __name__ == "__main__":
     migrate()

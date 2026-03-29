@@ -1,9 +1,3 @@
-databases:
-  - name: insurance-db
-    plan: free
-    databaseName: insurance_db
-    user: insurance_user
-
 services:
   - type: web
     name: insurance-service
@@ -13,9 +7,7 @@ services:
     startCommand: "uvicorn insurance_service.main:app --host 0.0.0.0 --port $PORT"
     envVars:
       - key: DATABASE_URL
-        fromDatabase:
-          name: insurance-db
-          property: connectionString
+        sync: false  # Set manually in Render dashboard (Neon/Supabase connection string)
       - key: DEBUG
         value: "False"
       - key: CORS_ORIGINS

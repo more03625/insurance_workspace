@@ -1,5 +1,3 @@
-import uuid
-import os
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -8,126 +6,157 @@ _root = Path(__file__).resolve().parent.parent
 if str(_root) not in sys.path:
     sys.path.insert(0, str(_root))
 
-from sqlmodel import Session, select, create_engine
-from insurance_service.models.entities import User, PolicyMaster, UserPolicy, Claimant, Loss, Claim, UserRole
+from sqlmodel import Session, select, create_engine, func
+from insurance_service.models.entities import (
+    User, PolicyMaster, UserPolicy, Claimant, Loss, Claim, UserRole,
+)
 from config.settings import settings
 
-# Use the database URL from settings
-engine = create_engine(settings.DATABASE_URL, echo=True)
+engine = create_engine(settings.DATABASE_URL, echo=settings.DEBUG)
+
+
+def _has_rows(session: Session, model) -> bool:
+    count = session.exec(select(func.count()).select_from(model)).one()
+    return count > 0
+
+
+def _seed_users(session: Session):
+    if _has_rows(session, User):
+        print("[seed] users — already has data, skipped.")
+        return
+    session.add(User(
+        username="admin_emp",
+        email="admin@insurance.com",
+        password_hash="password@123",
+        first_name="Admin",
+        last_name="Employee",
+        role=UserRole.EMPLOYEE,
+    ))
+    session.add(User(
+        username="johndoe",
+        email="john.doe@example.com",
+        password_hash="password@123",
+        first_name="John",
+        last_name="Doe",
+        role=UserRole.POLICYHOLDER,
+    ))
+    session.commit()
+    print("[seed] users — seeded 2 rows.")
+
+
+def _seed_policy_masters(session: Session):
+    if _has_rows(session, PolicyMaster):
+        print("[seed] policy_masters — already has data, skipped.")
+        return
+    session.add(PolicyMaster(
+        name="Premium Auto Shield",
+        description="Comprehensive auto insurance covering collision and theft.",
+        policy_type="Auto",
+        base_premium=1200.0,
+        coverage_details="Collision: ₹50,000, Theft: ₹30,000, Liability: ₹1,00,000",
+    ))
+    session.add(PolicyMaster(
+        name="Home Secure Plus",
+        description="Protection for your home against fire, flood, and natural disasters.",
+        policy_type="Home",
+        base_premium=800.0,
+        coverage_details="Structure: ₹2,50,000, Contents: ₹50,000",
+    ))
+    session.commit()
+    print("[seed] policy_masters — seeded 2 rows.")
+
+
+def _seed_user_policies(session: Session):
+    if _has_rows(session, UserPolicy):
+        print("[seed] user_policies — already has data, skipped.")
+        return
+    policyholder = session.exec(
+        select(User).where(User.username == "johndoe")
+    ).first()
+    auto_policy = session.exec(
+        select(PolicyMaster).where(PolicyMaster.name == "Premium Auto Shield")
+    ).first()
+    if not policyholder or not auto_policy:
+        print("[seed] user_policies — skipped (missing parent rows in users or policy_masters).")
+        return
+    session.add(UserPolicy(
+        policy_number="POL-AUTO-999",
+        start_date=datetime.utcnow() - timedelta(days=30),
+        end_date=datetime.utcnow() + timedelta(days=335),
+        premium_paid=1200.0,
+        status="Active",
+        user_id=policyholder.id,
+        policy_master_id=auto_policy.id,
+    ))
+    session.commit()
+    print("[seed] user_policies — seeded 1 row.")
+
+
+def _seed_claimants(session: Session):
+    if _has_rows(session, Claimant):
+        print("[seed] claimants — already has data, skipped.")
+        return
+    session.add(Claimant(
+        first_name="John",
+        last_name="Doe",
+        email="john.doe@example.com",
+        phone="555-0123",
+        relationship_to_insured="Self",
+    ))
+    session.commit()
+    print("[seed] claimants — seeded 1 row.")
+
+
+def _seed_losses(session: Session):
+    if _has_rows(session, Loss):
+        print("[seed] losses — already has data, skipped.")
+        return
+    session.add(Loss(
+        loss_date=datetime.utcnow() - timedelta(days=5),
+        loss_type="Collision",
+        loss_cause="Fender bender at intersection",
+        loss_location="Main St & 5th Ave",
+        loss_description="Car hit a pole while turning.",
+    ))
+    session.commit()
+    print("[seed] losses — seeded 1 row.")
+
+
+def _seed_claims(session: Session):
+    if _has_rows(session, Claim):
+        print("[seed] claims — already has data, skipped.")
+        return
+    user_policy = session.exec(
+        select(UserPolicy).where(UserPolicy.policy_number == "POL-AUTO-999")
+    ).first()
+    claimant = session.exec(select(Claimant).limit(1)).first()
+    loss = session.exec(select(Loss).limit(1)).first()
+    if not user_policy or not claimant or not loss:
+        print("[seed] claims — skipped (missing parent rows in user_policies, claimants, or losses).")
+        return
+    session.add(Claim(
+        claim_number="CLM-2024-001",
+        claim_status="Submitted",
+        estimated_loss_amount=1500.0,
+        user_policy_id=user_policy.id,
+        claimant_id=claimant.id,
+        loss_id=loss.id,
+    ))
+    session.commit()
+    print("[seed] claims — seeded 1 row.")
+
 
 def seed_data():
+    print("[seed] Starting...")
     with Session(engine) as session:
-        # Check if data already exists
-        statement = select(User).limit(1)
-        if session.exec(statement).first():
-            print("Database already seeded.")
-            return
+        _seed_users(session)
+        _seed_policy_masters(session)
+        _seed_user_policies(session)
+        _seed_claimants(session)
+        _seed_losses(session)
+        _seed_claims(session)
+    print("[seed] Done.")
 
-        print("Seeding data...")
-
-        # 1. Create Users (Employees and Policyholders)
-        employee = User(
-            username="admin_emp",
-            email="admin@insurance.com",
-            password_hash="password@123",
-            first_name="Admin",
-            last_name="Employee",
-            role=UserRole.EMPLOYEE
-        )
-        
-        policyholder = User(
-            username="johndoe",
-            email="john.doe@example.com",
-            password_hash="password@123",
-            first_name="John",
-            last_name="Doe",
-            role=UserRole.POLICYHOLDER
-        )
-        
-        session.add(employee)
-        session.add(policyholder)
-        session.commit()
-        session.refresh(employee)
-        session.refresh(policyholder)
-
-        # 2. Create Policy Masters (The catalog)
-        auto_policy_master = PolicyMaster(
-            name="Premium Auto Shield",
-            description="Comprehensive auto insurance covering collision and theft.",
-            policy_type="Auto",
-            base_premium=1200.0,
-            coverage_details="Collision: $50,000, Theft: $30,000, Liability: $100,000"
-        )
-        
-        home_policy_master = PolicyMaster(
-            name="Home Secure Plus",
-            description="Protection for your home against fire, flood, and natural disasters.",
-            policy_type="Home",
-            base_premium=800.0,
-            coverage_details="Structure: $250,000, Contents: $50,000"
-        )
-        
-        session.add(auto_policy_master)
-        session.add(home_policy_master)
-        session.commit()
-        session.refresh(auto_policy_master)
-        session.refresh(home_policy_master)
-
-        # 3. Create User Policies (Purchased policies)
-        user_policy = UserPolicy(
-            policy_number="POL-AUTO-999",
-            start_date=datetime.utcnow() - timedelta(days=30),
-            end_date=datetime.utcnow() + timedelta(days=335),
-            premium_paid=1200.0,
-            status="Active",
-            user_id=policyholder.id,
-            policy_master_id=auto_policy_master.id
-        )
-        
-        session.add(user_policy)
-        session.commit()
-        session.refresh(user_policy)
-
-        # 4. Create Claimant
-        claimant = Claimant(
-            first_name="John",
-            last_name="Doe",
-            email="john.doe@example.com",
-            phone="555-0123",
-            relationship_to_insured="Self"
-        )
-        session.add(claimant)
-        session.commit()
-        session.refresh(claimant)
-
-        # 5. Create Loss
-        loss = Loss(
-            loss_date=datetime.utcnow() - timedelta(days=5),
-            loss_type="Collision",
-            loss_cause="Fender bender at intersection",
-            loss_location="Main St & 5th Ave",
-            loss_description="Car hit a pole while turning."
-        )
-        session.add(loss)
-        session.commit()
-        session.refresh(loss)
-
-        # 6. Create Claim
-        claim = Claim(
-            claim_number="CLM-2024-001",
-            claim_status="Submitted",
-            estimated_loss_amount=1500.0,
-            user_policy_id=user_policy.id,
-            claimant_id=claimant.id,
-            loss_id=loss.id
-        )
-        session.add(claim)
-        session.commit()
-
-        print("Seed data created successfully.")
 
 if __name__ == "__main__":
-    from core.db import init_db
-    # Ensure tables exist
-    init_db()
     seed_data()
