@@ -8,6 +8,7 @@ You are a **Senior Backend Engineer** building a **production-grade FastAPI syst
 * Ensure clean architecture and modular design
 * Prioritize **stability, readability, and performance**
 * Always produce **demo-ready, production-quality code**
+* Configure **CORS** for cross-origin frontend access
 
 ---
 
@@ -15,8 +16,9 @@ You are a **Senior Backend Engineer** building a **production-grade FastAPI syst
 
 * FastAPI
 * SQLModel (ORM)
-* PostgreSQL
+* PostgreSQL (external free-tier providers like Neon.tech for deployment)
 * Pydantic (validation)
+* Uvicorn (ASGI server)
 
 ---
 
@@ -27,37 +29,50 @@ You are a **Senior Backend Engineer** building a **production-grade FastAPI syst
   * routers → services → repositories → models
 * Keep business logic in **service layer only**
 * Do NOT write business logic in controllers/routes
-* Use dependency injection wherever possible
+* Use dependency injection wherever possible (FastAPI `Depends`)
 * Maintain separation of concerns
 
 ---
 
 # 📦 Folder Structure Rules
 
-* routers/ → API endpoints
-* services/ → business logic
-* repositories/ → DB queries
-* models/ → SQLModel schemas
-* schemas/ → request/response DTOs
-* core/ → shared utilities
-* config/ → environment & configs
+```
+insurance_service/
+├── routers/        → API endpoints (entities.py, claims.py, etc.)
+├── services/       → business logic
+├── repositories/   → DB queries (base.py for generic CRUD, entities.py for domain-specific)
+├── models/         → SQLModel table definitions (base.py, entities.py)
+├── schemas/        → Pydantic request/response DTOs (base.py, entities.py)
+├── main.py         → FastAPI app entry point, CORS, router includes
+├── create_db.py    → initial DB creation
+├── migrate_db.py   → incremental migration runner
+├── seed_data.py    → idempotent demo data seeder
+├── build.sh        → Render build script (pip install + migrate + seed)
+├── render.yaml     → Render Blueprint
+├── requirements.txt
+├── .env            → local environment variables (NOT committed)
+└── .gitignore
+
+core/               → shared utilities (db.py, errorcodes.py)
+config/             → settings (settings.py with Pydantic BaseSettings)
+```
 
 ---
 
 # 🛡️ Error Handling (MANDATORY)
 
-* Always use **try-catch (try-except)** blocks in service layer
+* Always use **try-except** blocks in service layer
 * Never expose raw exceptions to clients
-* Use a centralized **errorcodes.py** file
+* Use a centralized **`core/errorcodes.py`** file with an `ErrorCodes` class
 
 ## Error Format (STRICT)
 
+```json
 {
-code: 100001,
-message: "Please select claim type"
+  "success": false,
+  "error": { "code": 100005, "message": "Invalid username or password" }
 }
-
----
+```
 
 ## Rules for Error Handling
 
@@ -65,13 +80,11 @@ message: "Please select claim type"
 
   * `success: true/false`
   * `data` (if success)
-  * `error` (if failure)
+  * `error` (if failure, with code + message from `ErrorCodes`)
 
 * Map all exceptions to structured errors
 
-* Use custom exceptions (e.g., `AppException`)
-
-* Do NOT hardcode messages → always use `errorcodes.py`
+* Do NOT hardcode error messages → always reference `ErrorCodes` constants
 
 * Log all errors before returning response
 
@@ -86,60 +99,100 @@ message: "Please select claim type"
   * 200 → success
   * 400 → validation error
   * 401 → unauthorized
+  * 404 → not found
   * 500 → internal error
 
-* Use Pydantic for:
+* Use Pydantic schemas for:
 
   * request validation
-  * response schemas
+  * response serialization
 
 * Keep APIs **idempotent where required**
 
-* Use proper naming conventions:
+* Standard API endpoints:
 
-  * `/claims`
-  * `/claims/{id}`
-  * `/claims/{id}/images`
+  * `POST /login` → authenticate user
+  * `POST /claims` → create claim
+  * `GET /claims` → list claims (with pagination: skip, limit)
+  * `GET /claims/{id}` → get claim detail
+  * `PUT /claims/{id}/verify` → verify/assess claim
+  * `POST /documents` → upload document metadata
+  * `GET /documents/claim/{claim_id}` → list documents for a claim
+  * `POST /users` → create user
+  * `GET /users` → list users
+  * `POST /policies` → create policy master
+  * `GET /policies` → list policies
+  * `POST /user-policies` → purchase policy for user
+  * `GET /user-policies/user/{user_id}` → get user's policies
+  * `POST /claimants` → create claimant
 
 ---
 
 # 🗄️ Database Rules
 
 * Use SQLModel ORM only
-* Avoid raw SQL unless absolutely necessary
+* Avoid raw SQL unless absolutely necessary (e.g., custom migration ALTER statements)
 * Use indexes for frequently queried fields
 * Use transactions where required
 * Handle DB failures gracefully
+* **Database URL handling:** convert `postgres://` to `postgresql://` (cloud providers like Heroku/Neon use the former, SQLAlchemy requires the latter) via `field_validator` in settings
+* **SQL echo:** conditional on `DEBUG` setting (off in production)
+
+---
+
+# 🔄 Database Migration Strategy (IMPORTANT)
+
+* Use **incremental migrations** — never drop tables
+* `SQLModel.metadata.create_all(engine)` with `checkfirst=True` for safe table creation
+* Track custom SQL migrations via `_applied_migrations` table:
+  * Each migration has a unique name and SQL statement
+  * Only pending migrations are applied
+* Run migrations automatically during `build.sh`
+
+---
+
+# 🌱 Database Seeding Strategy (IMPORTANT)
+
+* **Per-table idempotent seeding** — check if table has rows before inserting
+* Use `_has_rows(session, Model)` pattern to skip tables with existing data
+* Seed in dependency order (users → policy_masters → user_policies → etc.)
+* Look up parent records by unique identifiers (username, name) when creating dependent data
+* Demo credentials: store as plaintext for demo simplicity (in production, use hashing)
+* Run seeding automatically during `build.sh`
 
 ---
 
 # 🔐 Authentication & Security
 
-* Use JWT-based authentication (if applicable)
-* Validate all inputs
-* Prevent SQL injection
+* Simple username/password login endpoint (`POST /login`)
+* Return user object on successful login (role, id, name, email)
+* Validate all inputs using Pydantic
+* Prevent SQL injection (via ORM)
 * Sanitize inputs before DB operations
+* **CORS middleware** configured in `main.py`:
+  * `allow_origins` from `CORS_ORIGINS` environment variable
+  * `allow_methods=["*"]`, `allow_headers=["*"]`, `allow_credentials=True`
 
 ---
 
 # 📊 Logging Rules
 
 * Use structured logging
+* SQL echo conditional on `settings.DEBUG`
 
 * Log:
 
   * API requests
-  * API responses (optional)
   * Errors (mandatory)
 
-* Do NOT log sensitive data
+* Do NOT log sensitive data (passwords, tokens)
 
 ---
 
 # ⚡ Performance Rules
 
 * Avoid N+1 queries
-* Use pagination for list APIs
+* Use pagination for list APIs (`skip`, `limit` parameters)
 * Optimize DB queries
 * Use async where beneficial
 
@@ -150,7 +203,7 @@ message: "Please select claim type"
 * Validate all inputs
 * Handle edge cases
 * Ensure null safety
-* Add basic test cases (if possible)
+* Return structured error responses, never raw exceptions
 
 ---
 
@@ -160,28 +213,21 @@ message: "Please select claim type"
 * Use meaningful variable names
 * Keep functions small and reusable
 * Avoid code duplication
-* Add docstrings for important functions
+* Add `sys.path` manipulation at top of standalone scripts (migrate_db.py, seed_data.py) to resolve project imports
 
 ---
 
-# 🔄 Response Format (STANDARD)
+# 🌐 Deployment (Render)
 
-Success:
-
-{
-"success": true,
-"data": {...}
-}
-
-Failure:
-
-{
-"success": false,
-"error": {
-"code": 100001,
-"message": "Please select claim type"
-}
-}
+* **Render** for backend hosting (free plan)
+* `build.sh` script:
+  * `pip install -r insurance_service/requirements.txt`
+  * `python insurance_service/migrate_db.py`
+  * `python insurance_service/seed_data.py`
+* `render.yaml` Blueprint with:
+  * `startCommand: uvicorn insurance_service.main:app --host 0.0.0.0 --port $PORT`
+  * Environment variables: `DATABASE_URL` (manual, from Neon), `DEBUG`, `CORS_ORIGINS`, `PYTHON_VERSION`
+* **External PostgreSQL** (Neon.tech free tier) — set `DATABASE_URL` manually in Render dashboard
 
 ---
 
@@ -189,8 +235,9 @@ Failure:
 
 * APIs must NEVER fail during demo
 * Always provide fallback handling
-* Seed demo data where needed
+* Seed demo data automatically via `build.sh`
 * Ensure predictable responses
+* Demo users pre-seeded: `admin_emp` (employee), `johndoe` (policyholder), etc.
 
 ---
 
