@@ -62,8 +62,23 @@ export default function SurveyorDashboard() {
     }
   };
 
+  const claimantFullName = (c) =>
+    c?.first_name || c?.last_name
+      ? `${c.first_name || ''} ${c.last_name || ''}`.trim()
+      : '—';
+
   const columns = [
     { key: 'claim_number', label: 'Claim #' },
+    {
+      key: 'claimant',
+      label: 'Claimant',
+      render: (_, row) => (
+        <div className="min-w-0">
+          <p className="truncate font-medium text-gray-900">{claimantFullName(row.claimant)}</p>
+          <p className="truncate text-xs text-gray-500">{row.claimant?.email || '—'}</p>
+        </div>
+      ),
+    },
     { key: 'claim_status', label: 'Status', render: (val) => <StatusBadge status={val} /> },
     { key: 'estimated_loss_amount', label: 'Amount', render: (val) => (val != null ? `₹${Number(val).toLocaleString('en-IN')}` : '—') },
     { key: 'created_at', label: 'Filed On', render: (val) => (val ? new Date(val).toLocaleDateString() : '—') },
@@ -107,10 +122,27 @@ export default function SurveyorDashboard() {
         {selected && (
           <div className="space-y-4">
             <div className="grid grid-cols-1 gap-3 rounded-lg bg-gray-50 p-3 text-sm sm:grid-cols-2 sm:p-4">
+              <div className="sm:col-span-2">
+                <span className="text-gray-500">Claimant:</span>{' '}
+                <span className="font-medium">{claimantFullName(selected.claimant)}</span>
+                {selected.claimant?.email && (
+                  <span className="mt-0.5 block text-gray-600">{selected.claimant.email}</span>
+                )}
+              </div>
               <div><span className="text-gray-500">Status:</span> <StatusBadge status={selected.claim_status} /></div>
               <div><span className="text-gray-500">Amount:</span> <span className="font-medium">₹{Number(selected.estimated_loss_amount).toLocaleString('en-IN')}</span></div>
               <div><span className="text-gray-500">Filed:</span> <span className="font-medium">{new Date(selected.created_at).toLocaleDateString()}</span></div>
-              <div><span className="text-gray-500">Loss ID:</span> <span className="font-medium break-all">{selected.loss_id ? selected.loss_id.slice(0, 8) + '...' : '—'}</span></div>
+              <div>
+                <span className="text-gray-500">Loss:</span>{' '}
+                <span className="font-medium">
+                  {selected.loss?.loss_type
+                    ? selected.loss.loss_type
+                    : '—'}
+                </span>
+                {selected.loss?.loss_location && (
+                  <span className="mt-0.5 block text-gray-600">{selected.loss.loss_location}</span>
+                )}
+              </div>
             </div>
 
             {/* Documents section */}

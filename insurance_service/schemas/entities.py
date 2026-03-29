@@ -133,6 +133,8 @@ class ClaimRead(ClaimBase):
     verified_at: Optional[datetime] = None
     verified_by_id: Optional[uuid.UUID] = None
     created_at: datetime
+    claimant: Optional[ClaimantRead] = None
+    loss: Optional[LossRead] = None
 
     class Config:
         from_attributes = True

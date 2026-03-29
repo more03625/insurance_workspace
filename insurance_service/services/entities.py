@@ -10,7 +10,8 @@ from insurance_service.repositories.entities import (
 )
 from insurance_service.schemas.entities import (
     UserCreate, LoginRequest, PolicyMasterCreate, UserPolicyCreate,
-    ClaimantCreate, LossCreate, ClaimCreate, ClaimUpdate, DocumentCreate
+    ClaimantCreate, LossCreate, ClaimCreate, ClaimUpdate, DocumentCreate,
+    ClaimRead, ClaimantRead, LossRead,
 )
 from core.errorcodes import ErrorCodes
 from core.jwt_utils import create_access_token
@@ -130,6 +131,25 @@ class ClaimService:
         self.session = session
         self.repo = ClaimRepository(session)
         self.loss_repo = LossRepository(session)
+        self.claimant_repo = ClaimantRepository(session)
+
+    def _build_claim_read(self, claim: Claim) -> ClaimRead:
+        cl = self.claimant_repo.get_by_id(claim.claimant_id)
+        ls = self.loss_repo.get_by_id(claim.loss_id) if claim.loss_id else None
+        return ClaimRead(
+            id=claim.id,
+            claim_number=claim.claim_number,
+            estimated_loss_amount=claim.estimated_loss_amount,
+            user_policy_id=claim.user_policy_id,
+            claimant_id=claim.claimant_id,
+            loss_id=claim.loss_id,
+            claim_status=claim.claim_status,
+            verified_at=claim.verified_at,
+            verified_by_id=claim.verified_by_id,
+            created_at=claim.created_at,
+            claimant=ClaimantRead.model_validate(cl) if cl else None,
+            loss=LossRead.model_validate(ls) if ls else None,
+        )
 
     def create_claim(self, data: ClaimCreate) -> dict:
         try:
@@ -148,7 +168,7 @@ class ClaimService:
                 loss_id=loss_id
             )
             created = self.repo.create(new_claim)
-            return {"success": True, "data": created}
+            return {"success": True, "data": self._build_claim_read(created)}
         except Exception as e:
             logger.error(f"Error creating claim: {str(e)}")
             return {"success": False, "error": ErrorCodes.CLAIM_CREATION_FAILED}
@@ -164,14 +184,17 @@ class ClaimService:
             claim.verified_by_id = employee_id
             
             updated = self.repo.update(claim)
-            return {"success": True, "data": updated}
+            return {"success": True, "data": self._build_claim_read(updated)}
         except Exception as e:
             return {"success": False, "error": ErrorCodes.CLAIM_UPDATE_FAILED}
 
     def list_claims(self, offset: int = 0, limit: int = 100) -> dict:
         try:
             claims = self.repo.get_all(offset, limit)
-            return {"success": True, "data": claims}
+            return {
+                "success": True,
+                "data": [self._build_claim_read(c) for c in claims],
+            }
         except Exception as e:
             return {"success": False, "error": ErrorCodes.GENERIC_ERROR}
 
