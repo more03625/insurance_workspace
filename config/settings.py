@@ -8,6 +8,8 @@ class Settings(BaseSettings):
     PORT: int = 8000
     DEBUG: bool = True
     VERSION: str = "1.0.0"
+    JWT_SECRET_KEY: str = "change-me-in-production"
+    JWT_EXPIRATION_DAYS: int = 1
 
     @field_validator("DATABASE_URL", mode="before")
     @classmethod

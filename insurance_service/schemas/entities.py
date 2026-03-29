@@ -9,6 +9,19 @@ class LoginRequest(BaseModel):
     username: str
     password: str
 
+class LoginResponse(BaseModel):
+    token: str
+    id: uuid.UUID
+    username: str
+    email: str
+    first_name: str
+    last_name: str
+    role: str
+    is_active: bool
+
+    class Config:
+        from_attributes = True
+
 # User Schemas
 class UserBase(BaseModel):
     username: str

@@ -13,6 +13,7 @@ from insurance_service.schemas.entities import (
     ClaimantCreate, LossCreate, ClaimCreate, ClaimUpdate, DocumentCreate
 )
 from core.errorcodes import ErrorCodes
+from core.jwt_utils import create_access_token
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +31,26 @@ class UserService:
                 return {"success": False, "error": ErrorCodes.INVALID_CREDENTIALS}
             if not user.is_active:
                 return {"success": False, "error": ErrorCodes.ACCOUNT_DEACTIVATED}
-            return {"success": True, "data": user}
+
+            token = create_access_token(
+                user_id=str(user.id),
+                username=user.username,
+                role=user.role.value if hasattr(user.role, "value") else user.role,
+            )
+
+            return {
+                "success": True,
+                "data": {
+                    "token": token,
+                    "id": user.id,
+                    "username": user.username,
+                    "email": user.email,
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
+                    "role": user.role.value if hasattr(user.role, "value") else user.role,
+                    "is_active": user.is_active,
+                },
+            }
         except Exception as e:
             logger.error(f"Login error: {str(e)}")
             return {"success": False, "error": ErrorCodes.GENERIC_ERROR}
