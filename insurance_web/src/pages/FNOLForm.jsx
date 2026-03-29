@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
@@ -7,8 +7,17 @@ import FormField from '../components/FormField';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { createClaimant } from '../services/claimantService';
 import { createClaim } from '../services/claimService';
+import { uploadDocument } from '../services/documentService';
 import { getUserPolicies } from '../services/policyService';
 import { LOSS_TYPES, USER_ROLES } from '../constants/enums';
+
+function generateClaimNumber() {
+  const year = new Date().getFullYear();
+  const seq = Math.floor(10000 + Math.random() * 90000);
+  return `CLM-${year}-${seq}`;
+}
+
+const DOC_TYPES = ['Photo', 'Invoice', 'ID Proof', 'FIR Copy', 'Medical Report', 'Repair Estimate', 'Other'];
 
 const INITIAL_STATE = {
   first_name: '',
@@ -18,7 +27,7 @@ const INITIAL_STATE = {
   relationship_to_insured: '',
   user_id: '',
   user_policy_id: '',
-  claim_number: '',
+  claim_number: generateClaimNumber(),
   estimated_loss_amount: '',
   loss_date: '',
   loss_type: '',
@@ -37,6 +46,7 @@ export default function FNOLForm() {
   const [step, setStep] = useState(1);
   const [userPolicies, setUserPolicies] = useState([]);
   const [loadingPolicies, setLoadingPolicies] = useState(false);
+  const [documents, setDocuments] = useState([]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -70,7 +80,6 @@ export default function FNOLForm() {
     const errs = {};
     if (!isPolicyholder && !form.user_id.trim()) errs.user_id = 'User ID is required';
     if (!form.user_policy_id.trim()) errs.user_policy_id = 'Please select a policy';
-    if (!form.claim_number.trim()) errs.claim_number = 'Claim number is required';
     if (!form.estimated_loss_amount) errs.estimated_loss_amount = 'Estimated amount is required';
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -90,11 +99,50 @@ export default function FNOLForm() {
   const handleNext = () => {
     if (step === 1 && validateStep1()) setStep(2);
     else if (step === 2 && validateStep2()) setStep(3);
+    else if (step === 3 && validateStep3()) setStep(4);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!validateStep3()) return;
+  // ---- Document helpers ----
+  const handleFileSelect = useCallback((e) => {
+    const files = Array.from(e.target.files);
+    const newDocs = files.map((file) => {
+      const ext = file.name.split('.').pop().toLowerCase();
+      return {
+        _localId: crypto.randomUUID(),
+        file,
+        document_name: file.name,
+        document_type: '',
+        file_format: ext,
+        file_size: file.size,
+      };
+    });
+    setDocuments((prev) => [...prev, ...newDocs]);
+    e.target.value = '';
+  }, []);
+
+  const updateDocType = useCallback((localId, type) => {
+    setDocuments((prev) =>
+      prev.map((d) => (d._localId === localId ? { ...d, document_type: type } : d))
+    );
+  }, []);
+
+  const removeDocument = useCallback((localId) => {
+    setDocuments((prev) => prev.filter((d) => d._localId !== localId));
+  }, []);
+
+  const formatFileSize = (bytes) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / 1048576).toFixed(1)} MB`;
+  };
+
+  // ---- Submit ----
+  const handleSubmit = async () => {
+    const untyped = documents.filter((d) => !d.document_type);
+    if (untyped.length > 0) {
+      toast.error('Please select a document type for all attached files.');
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -106,7 +154,7 @@ export default function FNOLForm() {
         relationship_to_insured: form.relationship_to_insured,
       });
 
-      await createClaim({
+      const claim = await createClaim({
         claim_number: form.claim_number,
         estimated_loss_amount: parseFloat(form.estimated_loss_amount),
         user_policy_id: form.user_policy_id,
@@ -120,7 +168,21 @@ export default function FNOLForm() {
         },
       });
 
-      toast.success('Claim filed successfully!');
+      if (documents.length > 0) {
+        const uploadPromises = documents.map((doc) =>
+          uploadDocument({
+            document_name: doc.document_name,
+            document_type: doc.document_type,
+            file_path: `/uploads/${claim.id}/${doc.document_name}`,
+            file_format: doc.file_format,
+            claim_id: claim.id,
+          })
+        );
+        await Promise.all(uploadPromises);
+      }
+
+      const docMsg = documents.length > 0 ? ` with ${documents.length} document(s)` : '';
+      toast.success(`Claim filed successfully${docMsg}!`);
       navigate(isPolicyholder ? '/portal/claims' : '/admin/claims');
     } catch (err) {
       toast.error(err.message || 'Failed to submit claim');
@@ -129,14 +191,14 @@ export default function FNOLForm() {
     }
   };
 
-  const stepLabels = ['Claimant Info', 'Policy & Claim', 'Loss Details'];
+  const stepLabels = ['Claimant Info', 'Policy & Claim', 'Loss Details', 'Documents'];
 
   return (
     <>
       <PageHeader title="File a Claim (FNOL)" subtitle="First Notice of Loss — create a new insurance claim" />
 
       {/* Step indicator */}
-      <div className="mb-8 flex items-center gap-2">
+      <div className="mb-8 flex flex-wrap items-center gap-2">
         {stepLabels.map((label, i) => {
           const num = i + 1;
           const active = step === num;
@@ -157,8 +219,8 @@ export default function FNOLForm() {
         })}
       </div>
 
-      <form onSubmit={handleSubmit} className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        {/* Step 1 */}
+      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        {/* Step 1 — Claimant */}
         {step === 1 && (
           <div className="grid gap-4 sm:grid-cols-2">
             <FormField label="First Name" name="first_name" value={form.first_name} onChange={handleChange} error={errors.first_name} required />
@@ -169,7 +231,7 @@ export default function FNOLForm() {
           </div>
         )}
 
-        {/* Step 2 */}
+        {/* Step 2 — Policy & Claim */}
         {step === 2 && (
           <div className="grid gap-4 sm:grid-cols-2">
             {!isPolicyholder && (
@@ -189,12 +251,12 @@ export default function FNOLForm() {
                 options={userPolicies.map((p) => ({ value: p.id, label: `${p.policy_number} (${p.status})` }))}
               />
             )}
-            <FormField label="Claim Number" name="claim_number" value={form.claim_number} onChange={handleChange} error={errors.claim_number} required placeholder="e.g. CLM-2026-001" />
+            <FormField label="Claim Number" name="claim_number" value={form.claim_number} onChange={handleChange} disabled />
             <FormField label="Estimated Loss Amount (₹)" name="estimated_loss_amount" type="number" value={form.estimated_loss_amount} onChange={handleChange} error={errors.estimated_loss_amount} required />
           </div>
         )}
 
-        {/* Step 3 */}
+        {/* Step 3 — Loss Details */}
         {step === 3 && (
           <div className="grid gap-4 sm:grid-cols-2">
             <FormField label="Loss Date" name="loss_date" type="date" value={form.loss_date} onChange={handleChange} error={errors.loss_date} required />
@@ -207,6 +269,78 @@ export default function FNOLForm() {
           </div>
         )}
 
+        {/* Step 4 — Documents */}
+        {step === 4 && (
+          <div>
+            <div className="mb-4">
+              <h3 className="text-base font-semibold text-gray-800">Attach Supporting Documents</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                Upload photos, invoices, ID proofs, FIR copies, or any other supporting documents. This step is optional.
+              </p>
+            </div>
+
+            {/* File picker */}
+            <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-6 transition-colors hover:border-indigo-400 hover:bg-indigo-50">
+              <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0 3 3m-3-3-3 3M6.75 19.5a4.5 4.5 0 0 1-1.41-8.775 5.25 5.25 0 0 1 10.233-2.33 3 3 0 0 1 3.758 3.848A3.752 3.752 0 0 1 18 19.5H6.75Z" />
+              </svg>
+              <span className="text-sm font-medium text-gray-600">Click to select files</span>
+              <input type="file" multiple className="hidden" onChange={handleFileSelect} accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx" />
+            </label>
+
+            {/* Attached documents list */}
+            {documents.length > 0 && (
+              <div className="mt-4 space-y-3">
+                {documents.map((doc) => (
+                  <div key={doc._localId} className="flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
+                    {/* File icon */}
+                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600">
+                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                      </svg>
+                    </div>
+
+                    {/* File info */}
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-gray-800">{doc.document_name}</p>
+                      <p className="text-xs text-gray-500">{doc.file_format.toUpperCase()} — {formatFileSize(doc.file_size)}</p>
+                    </div>
+
+                    {/* Document type selector */}
+                    <select
+                      value={doc.document_type}
+                      onChange={(e) => updateDocType(doc._localId, e.target.value)}
+                      className="rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    >
+                      <option value="">Select type</option>
+                      {DOC_TYPES.map((t) => (
+                        <option key={t} value={t}>{t}</option>
+                      ))}
+                    </select>
+
+                    {/* Remove button */}
+                    <button
+                      type="button"
+                      onClick={() => removeDocument(doc._localId)}
+                      className="flex-shrink-0 rounded-md p-1.5 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500"
+                    >
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+
+                <p className="text-sm text-gray-500">{documents.length} document(s) attached</p>
+              </div>
+            )}
+
+            {documents.length === 0 && (
+              <p className="mt-4 text-center text-sm text-gray-400">No documents attached yet. You can skip this step if not needed.</p>
+            )}
+          </div>
+        )}
+
         {/* Navigation */}
         <div className="mt-6 flex items-center justify-between">
           {step > 1 ? (
@@ -216,17 +350,17 @@ export default function FNOLForm() {
           ) : (
             <div />
           )}
-          {step < 3 ? (
+          {step < 4 ? (
             <button type="button" onClick={handleNext} className="rounded-lg bg-indigo-600 px-6 py-2 text-sm font-medium text-white hover:bg-indigo-700">
               Next
             </button>
           ) : (
-            <button type="submit" disabled={submitting} className="rounded-lg bg-indigo-600 px-6 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
+            <button type="button" onClick={handleSubmit} disabled={submitting} className="rounded-lg bg-indigo-600 px-6 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
               {submitting ? 'Submitting...' : 'Submit Claim'}
             </button>
           )}
         </div>
-      </form>
+      </div>
     </>
   );
 }

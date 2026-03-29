@@ -59,3 +59,8 @@ def create_claimant(data: ClaimantCreate, session: Session = Depends(get_session
 def upload_document(data: DocumentCreate, session: Session = Depends(get_session)):
     service = DocumentService(session)
     return service.upload_document(data)
+
+@router.get("/documents/claim/{claim_id}", response_model=ResponseSchema[List[DocumentRead]])
+def get_documents_by_claim(claim_id: uuid.UUID, session: Session = Depends(get_session)):
+    service = DocumentService(session)
+    return service.get_documents_by_claim(claim_id)

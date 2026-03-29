@@ -168,6 +168,13 @@ class DocumentService:
         except Exception as e:
             return {"success": False, "error": ErrorCodes.UPLOAD_FAILED}
 
+    def get_documents_by_claim(self, claim_id: uuid.UUID) -> dict:
+        try:
+            docs = self.repo.get_by_claim_id(claim_id)
+            return {"success": True, "data": docs}
+        except Exception as e:
+            return {"success": False, "error": ErrorCodes.GENERIC_ERROR}
+
 class ClaimantService:
     def __init__(self, session: Session):
         self.session = session

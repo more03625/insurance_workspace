@@ -43,3 +43,7 @@ class ClaimRepository(BaseRepository[Claim]):
 class DocumentRepository(BaseRepository[Document]):
     def __init__(self, session: Session):
         super().__init__(session, Document)
+
+    def get_by_claim_id(self, claim_id: uuid.UUID) -> List[Document]:
+        statement = select(Document).where(Document.claim_id == claim_id, Document.is_deleted == False)
+        return self.session.exec(statement).all()
